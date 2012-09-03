@@ -1,3 +1,5 @@
+import abc
+
 try:
     import simplejson as json
 except ImportError:
@@ -9,7 +11,9 @@ from urllib import urlencode
 from facepy.exceptions import *
 
 
-class GraphAPI(object):
+class BaseGraphAPI(object):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, oauth_token=False, url='https://graph.facebook.com'):
         """
         Initialize GraphAPI with an OAuth access token.
@@ -20,150 +24,55 @@ class GraphAPI(object):
         self.session = requests.session()
         self.url = url.strip('/')
 
-    def get(self, path='', page=False, retry=3, **options):
+    def _parse(self, data):
         """
-        Get an item from the Graph API.
+        Parse the response from Facebook's Graph API.
 
-        :param path: A string describing the path to the item.
-        :param page: A boolean describing whether to return a generator that
-                     iterates over each page of results.
-        :param retry: An integer describing how many times the request may be retried.
-        :param options: Graph API parameters such as 'limit', 'offset' or 'since'.
-
-        See `Facebook's Graph API documentation <http://developers.facebook.com/docs/reference/api/>`_
-        for an exhaustive list of parameters.
+        :param data: A string describing the Graph API's response.
         """
-        response = self._query(
-            method='GET',
-            path=path,
-            data=options,
-            page=page,
-            retry=retry
-        )
+        try:
+            data = json.loads(data)
+        except ValueError:
+            return data
 
-        if response is False:
-            raise FacebookError('Could not get "%s".' % path)
+        # Facebook's Graph API sometimes responds with 'true' or 'false'.
+        # Facebook offers no documentation as to the prerequisites for this
+        # type of response, though it seems that it responds with 'true' when
+        # objects are successfully deleted and 'false' upon attempting to
+        # delete or access an item that one does not have access to.
+        #
+        # For example, the API would respond with 'false' upon attempting to
+        # query a feed item without having the 'read_stream' extended
+        # permission. If you were to query the entire feed, however, it would
+        # respond with an empty list instead.
+        #
+        # Genius.
+        #
+        # We'll handle this discrepancy as gracefully as we can by
+        # implementing logic to deal with this behavior in the high-level
+        # access functions (get, post, delete etc.).
+        if type(data) is dict:
+            if 'error' in data:
+                error = data['error']
 
-        return response
+                if error.get('type') == "OAuthException":
+                    exception = OAuthError
+                else:
+                    exception = FacebookError
 
-    def post(self, path='', retry=0, **data):
-        """
-        Post an item to the Graph API.
+                raise exception(
+                    error.get('message'),
+                    error.get('code', None)
+                )
 
-        :param path: A string describing the path to the item.
-        :param retry: An integer describing how many times the request may be retried.
-        :param data: Graph API parameters such as 'message' or 'source'.
+            # Facebook occasionally reports errors in its legacy error format.
+            if 'error_msg' in data:
+                raise FacebookError(
+                    data.get('error_msg'),
+                    data.get('error_code', None)
+                )
 
-        See `Facebook's Graph API documentation <http://developers.facebook.com/docs/reference/api/>`_
-        for an exhaustive list of options.
-        """
-        response = self._query(
-            method='POST',
-            path=path,
-            data=data,
-            retry=retry
-        )
-
-        if response is False:
-            raise FacebookError('Could not post to "%s"' % path)
-
-        return response
-
-    def delete(self, path, retry=3):
-        """
-        Delete an item in the Graph API.
-
-        :param path: A string describing the path to the item.
-        :param retry: An integer describing how many times the request may be retried.
-        """
-        response = self._query(
-            method='DELETE',
-            path=path,
-            retry=retry
-        )
-
-        if response is False:
-            raise FacebookError('Could not delete "%s"' % path)
-
-        return response
-
-    def search(self, term, type, page=False, retry=3, **options):
-        """
-        Search for an item in the Graph API.
-
-        :param term: A string describing the search term.
-        :param type: A string describing the type of items to search for.
-        :param page: A boolean describing whether to return a generator that
-                     iterates over each page of results.
-        :param retry: An integer describing how many times the request may be retried.
-        :param options: Graph API parameters, such as 'center' and 'distance'.
-
-        Supported types are ``post``, ``user``, ``page``, ``event``, ``group``, ``place`` and ``checkin``.
-
-        See `Facebook's Graph API documentation <http://developers.facebook.com/docs/reference/api/>`_
-        for an exhaustive list of options.
-        """
-        SUPPORTED_TYPES = ['post', 'user', 'page', 'event', 'group', 'place', 'checkin']
-
-        if type not in SUPPORTED_TYPES:
-            raise ValueError('Unsupported type "%s". Supported types are %s' % (type, ', '.join(SUPPORTED_TYPES)))
-
-        options = dict({
-            'q': term,
-            'type': type,
-        }, **options)
-
-        response = self._query('GET', 'search', options, page, retry)
-
-        return response
-
-    def batch(self, requests):
-        """
-        Make a batch request.
-
-        :param requests: A list of dictionaries with keys 'method', 'relative_url' and optionally 'body'.
-
-        Yields a list of responses and/or exceptions.
-        """
-
-        for request in requests:
-            if 'body' in request:
-                request['body'] = urlencode(request['body'])
-
-        responses = self.post(
-            batch=json.dumps(requests)
-        )
-
-        for response, request in zip(responses, requests):
-
-            # Facilitate for empty Graph API responses.
-            #
-            # https://github.com/jgorset/facepy/pull/30
-            if not response:
-                yield None
-                continue
-
-            try:
-                yield self._parse(response['body'])
-            except FacepyError as exception:
-                exception.request = request
-                yield exception
-
-    def fql(self, query, retry=3):
-        """
-        Use FQL to powerfully extract data from Facebook.
-
-        :param query: A FQL query or FQL multiquery ({'query_name': "query",...})
-        :param retry: An integer describing how many times the request may be retried.
-
-        See `Facebook's FQL documentation <http://developers.facebook.com/docs/reference/fql/>`_
-        for an exhaustive list of details.
-        """
-        return self._query(
-            method='GET',
-            path='fql?%s' % urlencode({'q': query}),
-            retry=retry
-        )
+        return data
 
     def _query(self, method, path, data=None, page=False, retry=0):
         """
@@ -243,52 +152,160 @@ class GraphAPI(object):
             else:
                 raise
 
-    def _parse(self, data):
+    def get(self, path='', page=False, retry=3, **options):
         """
-        Parse the response from Facebook's Graph API.
+        Get an item from the Graph API.
 
-        :param data: A string describing the Graph API's response.
+        :param path: A string describing the path to the item.
+        :param page: A boolean describing whether to return a generator that
+                     iterates over each page of results.
+        :param retry: An integer describing how many times the request may be retried.
+        :param options: Graph API parameters such as 'limit', 'offset' or 'since'.
+
+        See `Facebook's Graph API documentation <http://developers.facebook.com/docs/reference/api/>`_
+        for an exhaustive list of parameters.
         """
-        try:
-            data = json.loads(data)
-        except ValueError:
-            return data
+        response = self._query(
+            method='GET',
+            path=path,
+            data=options,
+            page=page,
+            retry=retry
+        )
 
-        # Facebook's Graph API sometimes responds with 'true' or 'false'. Facebook offers no documentation
-        # as to the prerequisites for this type of response, though it seems that it responds with 'true'
-        # when objects are successfully deleted and 'false' upon attempting to delete or access an item that
-        # one does not have access to.
-        #
-        # For example, the API would respond with 'false' upon attempting to query a feed item without having
-        # the 'read_stream' extended permission. If you were to query the entire feed, however, it would respond
-        # with an empty list instead.
-        #
-        # Genius.
-        #
-        # We'll handle this discrepancy as gracefully as we can by implementing logic to deal with this behavior
-        # in the high-level access functions (get, post, delete etc.).
-        if type(data) is dict:
-            if 'error' in data:
-                error = data['error']
+        if response is False:
+            raise FacebookError('Could not get "%s".' % path)
 
-                if error.get('type') == "OAuthException":
-                    exception = OAuthError
-                else:
-                    exception = FacebookError
+        return response
 
-                raise exception(
-                    error.get('message'),
-                    error.get('code', None)
-                )
+    def post(self, path='', retry=0, **data):
+        """
+        Post an item to the Graph API.
 
-            # Facebook occasionally reports errors in its legacy error format.
-            if 'error_msg' in data:
-                raise FacebookError(
-                    data.get('error_msg'),
-                    data.get('error_code', None)
-                )
+        :param path: A string describing the path to the item.
+        :param retry: An integer describing how many times the request may be retried.
+        :param data: Graph API parameters such as 'message' or 'source'.
 
-        return data
+        See `Facebook's Graph API documentation <http://developers.facebook.com/docs/reference/api/>`_
+        for an exhaustive list of options.
+        """
+        response = self._query(
+            method='POST',
+            path=path,
+            data=data,
+            retry=retry
+        )
+
+        if response is False:
+            raise FacebookError('Could not post to "%s"' % path)
+
+        return response
+
+    def delete(self, path, retry=3):
+        """
+        Delete an item in the Graph API.
+
+        :param path: A string describing the path to the item.
+        :param retry: An integer describing how many times the request may be retried.
+        """
+        response = self._query(
+            method='DELETE',
+            path=path,
+            retry=retry
+        )
+
+        if response is False:
+            raise FacebookError('Could not delete "%s"' % path)
+
+        return response
 
     # Proxy exceptions for ease of use and backwards compatibility.
-    FacebookError, OAuthError, HTTPError = FacebookError, OAuthError, HTTPError
+    FacebookError = FacebookError
+    OAuthError = OAuthError
+    HTTPError = HTTPError
+
+
+class GraphAPI(BaseGraphAPI):
+    def search(self, term, type, page=False, retry=3, **options):
+        """
+        Search for an item in the Graph API.
+
+        :param term: A string describing the search term.
+        :param type: A string describing the type of items to search for.
+        :param page: A boolean describing whether to return a generator that
+                     iterates over each page of results.
+        :param retry: An integer describing how many times the request may be retried.
+        :param options: Graph API parameters, such as 'center' and 'distance'.
+
+        Supported types are ``post``, ``user``, ``page``, ``event``, ``group``, ``place`` and ``checkin``.
+
+        See `Facebook's Graph API documentation <http://developers.facebook.com/docs/reference/api/>`_
+        for an exhaustive list of options.
+        """
+        SUPPORTED_TYPES = ['post', 'user', 'page', 'event', 'group', 'place', 'checkin']
+
+        if type not in SUPPORTED_TYPES:
+            raise ValueError('Unsupported type "%s". Supported types are %s' % (type, ', '.join(SUPPORTED_TYPES)))
+
+        options = dict({
+            'q': term,
+            'type': type,
+        }, **options)
+
+        response = self._query('GET', 'search', options, page, retry)
+
+        return response
+
+    def batch(self, requests):
+        """
+        Make a batch request.
+
+        :param requests: A list of dictionaries with keys 'method', 'relative_url' and optionally 'body'.
+
+        Yields a list of responses and/or exceptions.
+        """
+
+        for request in requests:
+            if 'body' in request:
+                request['body'] = urlencode(request['body'])
+
+        responses = self.post(
+            batch=json.dumps(requests)
+        )
+
+        for response, request in zip(responses, requests):
+            # Facilitate for empty Graph API responses.
+            #
+            # https://github.com/jgorset/facepy/pull/30
+            if not response:
+                yield None
+                continue
+
+            try:
+                yield self._parse(response['body'])
+            except FacepyError as exception:
+                exception.request = request
+                yield exception
+
+    def fql(self, query, retry=3):
+        """
+        Backwards compatibility wrapper.
+        -- WILL BE DEPRECATED SOON --
+        """
+        fql = FqlAPI(self.oauth_token)
+        return fql.get(query, retry)
+
+
+class FqlAPI(BaseGraphAPI):
+    def get(self, query, retry=3):
+        """
+        Use FQL to powerfully extract data from Facebook.
+
+        :param query: A FQL query or FQL multiquery ({'query_name': "query",...})
+        :param retry: An integer describing how many times the request may be retried.
+
+        See `Facebook's FQL documentation <http://developers.facebook.com/docs/reference/fql/>`_
+        for an exhaustive list of details.
+        """
+        path = 'fql?%s' % urlencode({'q': query})
+        return super(FqlAPI, self).get(path=path, retry=retry)
