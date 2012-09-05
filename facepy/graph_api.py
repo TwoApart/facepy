@@ -518,7 +518,9 @@ class SubscriptionsAPI(BaseGraphAPI):
         further details.
         """
         if mode != 'subscribe':
-            raise UnexpectedSubscriptionsModeError(mode)
+            # 422 Unprocessable Entity
+            # http://tools.ietf.org/html/rfc4918#section-11.2
+            return (422, None, None)
 
         # If decoding the verify_token does not raise any exceptions,
         # everything is OK
@@ -540,18 +542,19 @@ class SubscriptionsAPI(BaseGraphAPI):
         <https://developers.facebook.com/docs/reference/api/realtime/>`_ for
         further details.
         """
-        def sign(payload, algorithm):
-            # Although FB indicates support for SHA1 only, it doesn't hurt to
-            # support other algorithms as long as our system knows about it :)
-            if algorithm not in hashlib.algorithms:
-                raise InvalidSignatureAlgorithmError(algorithm)
-            digestmod = getattr(hashlib, algorithm)
-
-            return hmac.new(self.app_secret, payload, digestmod).hexdigest()
-
         algorithm, payload_signature = signature.split('=')
 
-        if payload_signature != sign(payload, algorithm):
+        # Although FB indicates support for SHA1 only, it doesn't hurt to
+        # support other algorithms as long as our system knows about it :)
+        if algorithm not in hashlib.algorithms:
+            # 422 Unprocessable Entity
+            # http://tools.ietf.org/html/rfc4918#section-11.2
+            return (422, None, None)
+
+        digestmod = getattr(hashlib, algorithm)
+        expected_signature = hmac.new(self.app_secret, payload, digestmod).hexdigest()
+
+        if expected_signature != payload_signature:
             raise SubscriptionsHandlerError("Invalid signature in payload")
 
         return (200, None, None)
@@ -559,5 +562,3 @@ class SubscriptionsAPI(BaseGraphAPI):
     # Proxy exceptions for ease of use and backwards compatibility.
     SignedTokenError = SignedTokenError
     SubscriptionsHandlerError = SubscriptionsHandlerError
-    UnexpectedSubscriptionsModeError = UnexpectedSubscriptionsModeError
-    InvalidSignatureAlgorithmError = InvalidSignatureAlgorithmError

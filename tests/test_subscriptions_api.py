@@ -317,7 +317,7 @@ def test_handler_get_unexpected_mode():
     subscriptions = SubscriptionsAPI('<app id>', '<app secret>', oauth_token='<access token>')
 
     challenge = verify_token = '<irrelevant>'
-    expected_result = (403, None, None, None, None)
+    expected_result = (422, None, None, None, None)
 
     assert_equals(expected_result, subscriptions.handler_get(
         '<unexpected mode>',
@@ -344,7 +344,7 @@ def test_handler_post_invalid_signature_algorithm():
 
     payload = '<irrelevant>'
     signature = '<invalid algorithm>=<irrelevant>'
-    expected_result = (403, None, None, None, None)
+    expected_result = (422, None, None, None, None)
 
     assert_equals(expected_result, subscriptions.handler_post(
         payload,
