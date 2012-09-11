@@ -2,7 +2,7 @@ test:
 	tox
 
 report:
-	nosetests --with-cov --cov-config tests/coveragerc --cov-report term-missing
+	nosetests --with-cov --cov-config tests/coveragerc --cov-report term-missing --cover-erase --all-modules
 
 release:
 	python setup.py sdist register upload
