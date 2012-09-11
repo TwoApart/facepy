@@ -1,6 +1,22 @@
 History
 -------
 
+0.9.0
++++++
+
+* Facepy has been heavily refactored into two clearly separated parts plus a
+  set of utils:
+
+   - ``facepy.client``: a thin wrapper over ``requests`` providing the basic
+     HTTP handling of requests and responses, error handling and
+
+   - ``facepy.api``: the Facebook GraphAPI implementation.
+
+   - ``facepy.util``: a set of support utils to handle some corners of the
+     Facebook GraphAPI (e.g. the encode/decode of signed requests which are
+     part of the core Facebook Authentication strategy but do not fit exactly
+     in GraphAPI).
+
 0.8.2
 +++++
 

@@ -1,12 +1,12 @@
-"""Tests for the ``graph_api`` module."""
-
+# -*- coding: utf-8 -*-
 import json
 
 from nose.tools import *
 from mock import patch, MagicMock
+
 from requests.exceptions import ConnectionError
 
-from facepy import GraphAPI
+from facepy.client import GraphClient
 
 
 patch = patch('requests.session')
@@ -24,7 +24,7 @@ def unmock():
 
 @with_setup(mock, unmock)
 def test_get():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps({
         'id': 1,
@@ -35,7 +35,7 @@ def test_get():
         'username': 'herc',
     })
 
-    graph.get('me')
+    client.get('me')
 
     mock_request.assert_called_with(
         'GET',
@@ -49,7 +49,7 @@ def test_get():
 
 @with_setup(mock, unmock)
 def test_get_with_fields():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps({
         'id': 1,
@@ -57,7 +57,7 @@ def test_get_with_fields():
         'last_name': 'Hauk'
     })
 
-    graph.get('me', fields=['id', 'first_name', 'last_name'])
+    client.get('me', fields=['id', 'first_name', 'last_name'])
 
     mock_request.assert_called_with(
         'GET',
@@ -69,7 +69,7 @@ def test_get_with_fields():
         }
     )
 
-    graph.get('me', fields=('id', 'first_name', 'last_name'))
+    client.get('me', fields=('id', 'first_name', 'last_name'))
 
     mock_request.assert_called_with(
         'GET',
@@ -84,16 +84,16 @@ def test_get_with_fields():
 
 @with_setup(mock, unmock)
 def test_forbidden_get():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = 'false'
 
-    assert_raises(GraphAPI.FacebookError, graph.get, 'me')
+    assert_raises(GraphClient.FacebookError, client.get, 'me')
 
 
 @with_setup(mock, unmock)
 def test_paged_get():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
     limit = 2
 
     responses = [
@@ -148,7 +148,7 @@ def test_paged_get():
 
 @with_setup(mock, unmock)
 def test_pagination_without_paging_next():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
     limit = 2
 
     mock_request.return_value.content = json.dumps({
@@ -171,7 +171,7 @@ def test_pagination_without_paging_next():
 
 @with_setup(mock, unmock)
 def test_get_with_errors():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
 
     # Test errors
     mock_request.return_value.content = json.dumps({
@@ -181,7 +181,7 @@ def test_get_with_errors():
         }
     })
 
-    assert_raises(GraphAPI.FacebookError, graph.get, 'me')
+    assert_raises(GraphClient.FacebookError, graph.get, 'me')
 
     # Test legacy errors
     mock_request.return_value.content = json.dumps({
@@ -189,47 +189,19 @@ def test_get_with_errors():
         'error_msg': 'An unknown error occurred',
     })
 
-    assert_raises(GraphAPI.FacebookError, graph.get, 'me')
+    assert_raises(GraphClient.FacebookError, graph.get, 'me')
 
     # Test legacy errors without an error code
     mock_request.return_value.content = json.dumps({
         'error_msg': 'The action you\'re trying to publish is invalid'
     })
 
-    assert_raises(GraphAPI.FacebookError, graph.get, 'me')
-
-
-@with_setup(mock, unmock)
-def test_fql():
-    graph = GraphAPI('<access token>')
-
-    mock_request.return_value.content = json.dumps({
-        'id': 1,
-        'name': 'Thomas \'Herc\' Hauk',
-        'first_name': 'Thomas',
-        'last_name': 'Hauk',
-        'link': 'http://facebook.com/herc',
-        'username': 'herc',
-    })
-
-    try:
-        graph.fql('SELECT id,name,first_name,last_name,username FROM user WHERE uid=me()')
-    except GraphAPI.FacebookError:
-        pass
-
-    mock_request.assert_called_with(
-        'GET',
-        'https://graph.facebook.com/fql?q=SELECT+id%2Cname%2Cfirst_name%2Clast_name%2Cusername+FROM+user+WHERE+uid%3Dme%28%29',
-        allow_redirects=True,
-        params={
-            'access_token': '<access token>'
-        }
-    )
+    assert_raises(GraphClient.FacebookError, graph.get, 'me')
 
 
 @with_setup(mock, unmock)
 def test_post():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps({
         'id': 1
@@ -253,28 +225,28 @@ def test_post():
 
 @with_setup(mock, unmock)
 def test_post_with_files():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
 
     mock_request.return_value.content = 'true'
 
     graph.post(
         path='me/photos',
-        source=open('tests/fixtures/parrot.jpg')
+        source=open('tests/client/fixtures/parrot.jpg')
     )
 
 
 @with_setup(mock, unmock)
 def test_forbidden_post():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
 
     mock_request.return_value.content = 'false'
 
-    assert_raises(GraphAPI.FacebookError, graph.post, 'me')
+    assert_raises(GraphClient.FacebookError, graph.post, 'me')
 
 
 @with_setup(mock, unmock)
 def test_delete():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
 
     mock_request.return_value.content = 'true'
 
@@ -292,55 +264,55 @@ def test_delete():
 
 @with_setup(mock, unmock)
 def test_forbidden_delete():
-    graph = GraphAPI('<access token>')
+    graph = GraphClient('<access token>')
 
     mock_request.return_value.content = 'false'
 
-    assert_raises(GraphAPI.FacebookError, graph.delete, 'me')
+    assert_raises(GraphClient.FacebookError, graph.delete, 'me')
 
 
 @with_setup(mock, unmock)
-def test_search():
-    graph = GraphAPI('<access token>')
+def test_oauth_error():
+    graph = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps({
-        'data': [
-            {
-                'message': 'I don\'t like your chair.'
-            },
-            {
-                'message': 'Don\'t let your mouth get your ass in trouble.'
-            }
-        ]
+        'error': {
+            'message': 'An active access token must be used to query information about the current user.',
+            'type': 'OAuthException',
+            'code': 2500
+        }
     })
 
-    graph.search(
-        term='shaft quotes',
-        type='post'
-    )
-
-    mock_request.assert_called_with(
-        'GET',
-        'https://graph.facebook.com/search',
-        allow_redirects=True,
-        params={
-            'q': 'shaft quotes',
-            'type': 'post',
-            'access_token': '<access token>'
-        }
-    )
+    assert_raises(GraphClient.OAuthError, graph.get, 'me')
 
 
 @with_setup(mock, unmock)
-def test_invalid_search():
-    graph = GraphAPI('<access token>')
+def test_query_transport_error():
+    graph = GraphClient('<access token>')
 
-    assert_raises(ValueError, graph.search, 'shaft', 'movies')
+    mock_request.side_effect = ConnectionError('Max retries exceeded with url: /')
+
+    assert_raises(GraphClient.HTTPError, graph.get, 'me')
+
+
+@with_setup(mock, unmock)
+def test_retry():
+    graph = GraphClient('<access token>')
+
+    mock_request.return_value.content = json.dumps({
+        'error': {
+            'code': 1,
+            'message': 'An unknown error occurred'
+        }
+    })
+
+    assert_raises(GraphClient.FacebookError, graph.get, 'me', retry=3)
+    assert_equal(len(mock_request.call_args_list), 4)
 
 
 @with_setup(mock, unmock)
 def test_batch():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps([
         {
@@ -358,7 +330,7 @@ def test_batch():
         {'method': 'POST', 'relative_url': 'me/feed', 'body': {'message': 'Hi me.'}}
     ]
 
-    batch = graph.batch(
+    batch = client.batch(
         requests=requests
     )
 
@@ -382,7 +354,7 @@ def test_batch():
 
 @with_setup(mock, unmock)
 def test_batch_with_empty_responses():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps([
         None,
@@ -400,7 +372,7 @@ def test_batch_with_empty_responses():
         {'method': 'GET', 'relative_url': 'me/photos'}
     ]
 
-    batch = graph.batch(
+    batch = client.batch(
         requests=requests
     )
 
@@ -409,7 +381,7 @@ def test_batch_with_empty_responses():
 
 @with_setup(mock, unmock)
 def test_batch_with_errors():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps([
         {
@@ -433,7 +405,7 @@ def test_batch_with_errors():
         {'method': 'GET', 'relative_url': 'me'}
     ]
 
-    batch = graph.batch(requests)
+    batch = client.batch(requests)
 
     responses = list(batch)
 
@@ -443,7 +415,7 @@ def test_batch_with_errors():
 
 @with_setup(mock, unmock)
 def test_batch_error_references_request():
-    graph = GraphAPI('<access token>')
+    client = GraphClient('<access token>')
 
     mock_request.return_value.content = json.dumps([
         {
@@ -459,47 +431,8 @@ def test_batch_error_references_request():
         {'method': 'GET', 'relative_url': 'me'}
     ]
 
-    batch = graph.batch(requests)
+    batch = client.batch(requests)
 
     responses = list(batch)
 
     assert_equal(responses[0].request, requests[0])
-
-
-@with_setup(mock, unmock)
-def test_oauth_error():
-    graph = GraphAPI('<access token>')
-
-    mock_request.return_value.content = json.dumps({
-        'error': {
-            'message': 'An active access token must be used to query information about the current user.',
-            'type': 'OAuthException',
-            'code': 2500
-        }
-    })
-
-    assert_raises(GraphAPI.OAuthError, graph.get, 'me')
-
-
-@with_setup(mock, unmock)
-def test_query_transport_error():
-    graph = GraphAPI('<access token>')
-
-    mock_request.side_effect = ConnectionError('Max retries exceeded with url: /')
-
-    assert_raises(GraphAPI.HTTPError, graph.get, 'me')
-
-
-@with_setup(mock, unmock)
-def test_retry():
-    graph = GraphAPI('<access token>')
-
-    mock_request.return_value.content = json.dumps({
-        'error': {
-            'code': 1,
-            'message': 'An unknown error occurred'
-        }
-    })
-
-    assert_raises(GraphAPI.FacebookError, graph.get, 'me', retry=3)
-    assert_equal(len(mock_request.call_args_list), 4)
