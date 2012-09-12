@@ -4,3 +4,8 @@ build
 *.egg-info
 .coverage
 .tox
+*~
+*.swp
+.DS_Store
+.idea
+.noseids
