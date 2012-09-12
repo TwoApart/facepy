@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # Loading the version with ``from facepy import __version__`` will cause
 # ``setuptools`` to attempt to import dependencies that we have no
@@ -18,7 +18,8 @@ setup(
     author='Johannes Gorset',
     author_email='jgorset@gmail.com',
     url='http://github.com/jgorset/facepy',
-    packages=['facepy'],
+    packages=find_packages(),
+    include_package_data=True,
     install_requires=['requests >=0.8'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
