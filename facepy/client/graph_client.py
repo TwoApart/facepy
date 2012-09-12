@@ -226,17 +226,19 @@ class GraphClient(object):
 
         return response
 
-    def delete(self, path, retry=3):
+    def delete(self, path, retry=3, **options):
         """
         Delete an item in the Graph API.
 
         :param path: A string describing the path to the item.
         :param retry: An integer describing how many times the request may be
         retried.
+        :param options: Graph API parameters such as 'object'.
         """
         response = self._query(
             method='DELETE',
             path=path,
+            data=options,
             retry=retry
         )
 
