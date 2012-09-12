@@ -18,13 +18,13 @@ from facepy.client.exceptions import (
 
 
 class GraphClient(object):
-    def __init__(self, oauth_token=False, url='https://graph.facebook.com'):
+    def __init__(self, access_token=False, url='https://graph.facebook.com'):
         """
         Initialize GraphAPI with an OAuth access token.
 
-        :param oauth_token: A string describing an OAuth access token.
+        :param access_token: A string describing an OAuth access token.
         """
-        self.oauth_token = oauth_token
+        self.access_token = access_token
         self.session = requests.session()
         self.url = url.strip('/')
 
@@ -108,8 +108,8 @@ class GraphClient(object):
 
         url = '%s%s' % (self.url, path)
 
-        if self.oauth_token:
-            data['access_token'] = self.oauth_token
+        if self.access_token:
+            data['access_token'] = self.access_token
 
         try:
             if page:

@@ -158,7 +158,7 @@ def test_updates_get():
         'https://graph.facebook.com/<app id>/subscriptions',
         allow_redirects=True,
         params={
-            'access_token': updates.client.oauth_token
+            'access_token': updates.client.access_token
         }
     )
 
@@ -190,7 +190,7 @@ def test_updates_subscribe():
         'https://graph.facebook.com/%s' % updates.path,
         files={},
         data={
-            'access_token': updates.client.oauth_token,
+            'access_token': updates.client.access_token,
             'object': obj,
             'fields': ','.join(fields),
             'callback_url': callback_url,
@@ -217,7 +217,7 @@ def test_updates_delete_object():
         'https://graph.facebook.com/%s' % updates.path,
         allow_redirects=True,
         params={
-            'access_token': updates.client.oauth_token,
+            'access_token': updates.client.access_token,
             'object': obj,
         }
     )
@@ -239,7 +239,7 @@ def test_updates_delete_all():
         'https://graph.facebook.com/%s' % updates.path,
         allow_redirects=True,
         params={
-            'access_token': updates.client.oauth_token,
+            'access_token': updates.client.access_token,
         }
     )
 
