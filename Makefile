@@ -1,7 +1,10 @@
 test:
 	tox
 
-report:
+clean:
+	find facepy/ tests/ -name "*.pyc" | xargs rm -rf
+
+report: clean
 	nosetests --with-cov --cov-config tests/coveragerc --cov-report term-missing --cover-erase --all-modules
 
 release:
