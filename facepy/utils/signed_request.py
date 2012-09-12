@@ -7,7 +7,7 @@ try:
 except ImportError:
     import json  # flake8: noqa
 
-from facepy.utils.exceptions import SignedRequestError
+from facepy.exceptions import FacepyError
 
 
 class SignedRequest(object):
@@ -64,4 +64,5 @@ class SignedRequest(object):
 
         return payload
 
-    Error = SignedRequestError
+    class Error(FacepyError):
+        """Exception for invalid signed requests."""

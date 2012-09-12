@@ -2,7 +2,6 @@
 from urllib import urlencode
 
 from facepy.api.base import BaseApi
-from facepy.client import GraphClient
 
 
 class GraphApi(BaseApi):
@@ -64,5 +63,3 @@ class GraphApi(BaseApi):
             path='fql?%s' % urlencode({'q': query}),
             retry=retry
         )
-
-    FacebookError = GraphClient.FacebookError
