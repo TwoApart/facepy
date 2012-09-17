@@ -215,6 +215,7 @@ def test_post():
     mock_request.assert_called_with(
         'POST',
         'https://graph.facebook.com/me/feed',
+        allow_redirects=False,
         files={},
         data={
             'message': 'He\'s a complicated man. And the only one that understands him is his woman',
@@ -340,6 +341,7 @@ def test_batch():
     mock_request.assert_called_with(
         'POST',
         'https://graph.facebook.com/',
+        allow_redirects=False,
         files={},
         data={
             'batch': json.dumps([

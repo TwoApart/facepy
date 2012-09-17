@@ -28,7 +28,7 @@ class GraphClient(object):
         self.session = requests.session()
         self.url = url.strip('/')
 
-    def _query(self, method, path, data=None, page=False, retry=0):
+    def _query(self, method, path, allow_redirects, data=None, page=False, retry=0):
         """
         Fetch an object from the Graph API and parse the output, returning a
         tuple where the first item is the object yielded by the Graph API and
@@ -53,7 +53,7 @@ class GraphClient(object):
                         method,
                         url,
                         params=data,
-                        allow_redirects=True
+                        allow_redirects=allow_redirects
                     )
 
                 if method in ['POST', 'PUT']:
@@ -70,7 +70,8 @@ class GraphClient(object):
                         method,
                         url,
                         data=data,
-                        files=files
+                        files=files,
+                        allow_redirects=allow_redirects
                     )
             except requests.RequestException as exception:
                 raise self.HTTPError(exception.message)
@@ -118,7 +119,7 @@ class GraphClient(object):
                 return load(method, url, data)[0]
         except FacepyError:
             if retry:
-                return self._query(method, path, data, page, retry - 1)
+                return self._query(method, path, allow_redirects, data, page, retry - 1)
             else:
                 raise
 
@@ -172,7 +173,7 @@ class GraphClient(object):
 
         return data
 
-    def get(self, path='', page=False, retry=3, **options):
+    def get(self, path='', page=False, retry=3, allow_redirects=True, **options):
         """
         Get an item from the Graph API.
 
@@ -189,8 +190,9 @@ class GraphClient(object):
         exhaustive list of parameters.
         """
         response = self._query(
-            method='GET',
-            path=path,
+            'GET',
+            path,
+            allow_redirects,
             data=options,
             page=page,
             retry=retry
@@ -201,7 +203,7 @@ class GraphClient(object):
 
         return response
 
-    def post(self, path='', retry=0, **options):
+    def post(self, path='', retry=0, allow_redirects=False, **options):
         """
         Post an item to the Graph API.
 
@@ -215,8 +217,9 @@ class GraphClient(object):
         exhaustive list of options.
         """
         response = self._query(
-            method='POST',
-            path=path,
+            'POST',
+            path,
+            allow_redirects,
             data=options,
             retry=retry
         )
@@ -226,7 +229,7 @@ class GraphClient(object):
 
         return response
 
-    def delete(self, path, retry=3, **options):
+    def delete(self, path, retry=3, allow_redirects=True, **options):
         """
         Delete an item in the Graph API.
 
@@ -236,8 +239,9 @@ class GraphClient(object):
         :param options: Graph API parameters such as 'object'.
         """
         response = self._query(
-            method='DELETE',
-            path=path,
+            'DELETE',
+            path,
+            allow_redirects,
             data=options,
             retry=retry
         )

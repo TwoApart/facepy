@@ -188,6 +188,7 @@ def test_updates_subscribe():
     mock_request.assert_called_with(
         'POST',
         'https://graph.facebook.com/%s' % updates.path,
+        allow_redirects=False,
         files={},
         data={
             'access_token': updates.client.access_token,
