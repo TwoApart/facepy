@@ -27,9 +27,6 @@ class OAuth(BaseApi):
         ID.
         :param application_secret_key: A string describing a Facebook
         application secret key.
-
-        NOTE: it seems this will be deprecated from Oct 3rd 2012 onwards:
-        https://developers.facebook.com/roadmap/offline-access-removal/
         """
         response = self.client.get(
             path=self.path,
